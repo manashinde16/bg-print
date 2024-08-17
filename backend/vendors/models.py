@@ -1,4 +1,5 @@
 from django.db import models
+from services.models import Service 
 
 class Vendor(models.Model):
     business_name = models.CharField(max_length=255)
@@ -9,7 +10,7 @@ class Vendor(models.Model):
     location_latitude = models.DecimalField(max_digits=9, decimal_places=6)
     location_longitude = models.DecimalField(max_digits=9, decimal_places=6)
     business_hours = models.CharField(max_length=255)
-    services_offered = models.TextField()
+    services_offered = services_offered = models.ManyToManyField(Service, related_name='vendors')
     accepted_file_formats = models.CharField(max_length=255)
     pricing_information = models.TextField()
     payment_methods = models.CharField(max_length=255)
