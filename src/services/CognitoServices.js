@@ -1,18 +1,20 @@
-import {Auth} from 'aws-amplify';
 import {
   CognitoUserPool,
   CognitoUser,
   AuthenticationDetails,
   CognitoUserAttribute,
 } from 'amazon-cognito-identity-js';
-import {REACT_APP_USER_POOL_ID, REACT_APP_CLIENT_ID} from 'react-native-dotenv';
+import {
+  REACT_APP_USER_POOL_ID,
+  REACT_APP_CLIENT_ID,
+  IDENTITY_POOL_ID,
+  AWS_REGION,
+} from 'react-native-dotenv';
 
 const poolData = {
   UserPoolId: REACT_APP_USER_POOL_ID,
   ClientId: REACT_APP_CLIENT_ID,
 };
-
-console.log(REACT_APP_USER_POOL_ID, REACT_APP_CLIENT_ID);
 
 const userPool = new CognitoUserPool(poolData);
 
@@ -66,50 +68,96 @@ export const signUp = (
 };
 
 // Sign in function
-export const signIn = async (username, password, callback) => {
-  try {
-    const user = await Auth.signIn(username, password);
-    callback(null, user);
-  } catch (err) {
-    callback(err, null);
-  }
+export const signIn = (username, password, callback) => {
+  const authenticationData = {
+    Username: username,
+    Password: password,
+  };
+  const authenticationDetails = new AuthenticationDetails(authenticationData);
+  const userData = {
+    Username: username,
+    Pool: userPool,
+  };
+  const cognitoUser = new CognitoUser(userData);
+
+  cognitoUser.authenticateUser(authenticationDetails, {
+    onSuccess: result => {
+      callback(null, result);
+    },
+    onFailure: err => {
+      callback(err, null);
+    },
+  });
 };
 
 // Sign out function
-export const signOut = async () => {
-  try {
-    await Auth.signOut();
-  } catch (err) {
-    console.error('Error signing out: ', err);
+export const signOut = () => {
+  const user = userPool.getCurrentUser();
+  if (user) {
+    user.signOut();
   }
 };
 
 // Confirm sign-up function
-export const confirmSignUp = async (username, code, callback) => {
-  try {
-    const result = await Auth.confirmSignUp(username, code);
-    callback(null, result);
-  } catch (err) {
-    callback(err, null);
-  }
+export const confirmSignUp = (username, code, callback) => {
+  const userData = {
+    Username: username,
+    Pool: userPool,
+  };
+  const cognitoUser = new CognitoUser(userData);
+
+  cognitoUser.confirmRegistration(code, true, (err, result) => {
+    if (err) {
+      callback(err, null);
+    } else {
+      callback(null, result);
+    }
+  });
 };
 
 // Get current user session function
-export const getCurrentUser = async callback => {
-  try {
-    const user = await Auth.currentAuthenticatedUser();
-    callback(null, user);
-  } catch (err) {
-    callback(err, null);
+export const getCurrentUser = callback => {
+  const cognitoUser = userPool.getCurrentUser();
+
+  if (cognitoUser) {
+    cognitoUser.getSession((err, session) => {
+      if (err) {
+        callback(err, null);
+      } else {
+        callback(null, session);
+      }
+    });
+  } else {
+    callback(new Error('No user is currently signed in.'), null);
   }
 };
 
 // Sign in with Google function
-export const signInWithGoogle = async callback => {
-  try {
-    const user = await Auth.federatedSignIn({provider: 'Google'});
-    callback(null, user);
-  } catch (err) {
-    callback(err, null);
-  }
+/*
+  export const signInWithGoogle = (idToken, callback) => {
+  const loginMap = {
+    'accounts.google.com': idToken,
+  };
+
+  const authenticationData = {
+    IdentityPoolId: IDENTITY_POOL_ID, // Add your identity pool ID
+    Logins: loginMap,
+  };
+
+  const AWS = require('aws-sdk');
+  AWS.config.region = AWS_REGION; // Your region
+  AWS.config.credentials = new AWS.CognitoIdentityCredentials(
+    authenticationData,
+  );
+
+  AWS.config.credentials.get(err => {
+    if (err) {
+      callback(err, null);
+    } else {
+      const credentials = AWS.config.credentials;
+      console.log('Successfully logged in with Google:', credentials);
+      callback(null, credentials);
+    }
+  });
 };
+*/
