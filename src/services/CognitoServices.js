@@ -7,8 +7,6 @@ import {
 import {
   REACT_APP_USER_POOL_ID,
   REACT_APP_CLIENT_ID,
-  IDENTITY_POOL_ID,
-  AWS_REGION,
 } from 'react-native-dotenv';
 
 const poolData = {
