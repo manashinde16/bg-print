@@ -16,7 +16,7 @@ class Vendor(models.Model):
     payment_methods = models.CharField(max_length=255)
     terms_and_conditions = models.TextField()
     printer_specifications = models.TextField(blank=True, null=True)
-    vendor_logo = models.ImageField(upload_to='vendor_logos/', blank=True, null=True)
+    vendor_logo_url = models.URLField(blank=True, null=True)
     reviews_and_ratings = models.TextField(blank=True, null=True)
 
     def __str__(self):

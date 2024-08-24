@@ -3,11 +3,10 @@ from rest_framework import generics
 from .models import Service
 from .serializers import ServiceSerializer
 from django.db.models import F, FloatField
-from django.db.models.functions import Sqrt, Power, Cast
+from django.db.models.functions import Sqrt, Power, Cast, Radians, Sin, Cos, ATan2
 from rest_framework.response import Response
 from vendors.models import Vendor
 from vendors.serializers import VendorSerializer
-from django.db.models import Q
 
 class ServiceCreateView(generics.CreateAPIView):
     queryset = Service.objects.all()
@@ -30,52 +29,48 @@ class VendorsByServiceView(generics.ListAPIView):
         user_longitude = float(self.request.query_params.get('longitude', 0))
         radius_km = 10  # Radius in kilometers
 
-        print(f"Requested Service ID: {service_id}")
-        print(f"User Latitude: {user_latitude}, Longitude: {user_longitude}")
+        # Convert latitude and longitude to radians
+        user_lat_rad = math.radians(user_latitude)
+        user_lon_rad = math.radians(user_longitude)
 
-        # Calculate the latitude and longitude bounds for a radius
-        # Earth's radius in kilometers
-        earth_radius_km = 6371
-        lat_diff = radius_km / earth_radius_km
-        lon_diff = radius_km / (earth_radius_km * abs(math.cos(math.radians(user_latitude))))
-
-        lat_min = user_latitude - lat_diff
-        lat_max = user_latitude + lat_diff
-        lon_min = user_longitude - lon_diff
-        lon_max = user_longitude + lon_diff
-
-        if service_id == 0:
-            # Find all vendors within the 10 km radius
-            vendors = Vendor.objects.filter(
-                location_latitude__gte=lat_min,
-                location_latitude__lte=lat_max,
-                location_longitude__gte=lon_min,
-                location_longitude__lte=lon_max
-            )
-        else:
-            # Filter vendors who offer the selected service and are within the 10 km radius
-            vendors = Vendor.objects.filter(
-                services_offered__id=service_id,
-                location_latitude__gte=lat_min,
-                location_latitude__lte=lat_max,
-                location_longitude__gte=lon_min,
-                location_longitude__lte=lon_max
-            )
-
-        # Annotate with distance
-        vendors = vendors.annotate(
-            distance=Sqrt(
-                Power(
-                    Cast(F('location_latitude'), FloatField()) - user_latitude,
-                    2
-                ) + Power(
-                    Cast(F('location_longitude'), FloatField()) - user_longitude,
-                    2
+        # Haversine formula to calculate distance
+        vendors = Vendor.objects.annotate(
+            distance=(
+                6371 * 2 * ATan2(
+                    Sqrt(
+                        Sin(
+                            (Radians(F('location_latitude')) - user_lat_rad) / 2,
+                            output_field=FloatField()
+                        ) ** 2 +
+                        Cos(user_lat_rad) * Cos(Radians(F('location_latitude'))) *
+                        Sin(
+                            (Radians(F('location_longitude')) - user_lon_rad) / 2,
+                            output_field=FloatField()
+                        ) ** 2
+                    ),
+                    Sqrt(
+                        1 - (
+                            Sin(
+                                (Radians(F('location_latitude')) - user_lat_rad) / 2,
+                                output_field=FloatField()
+                            ) ** 2 +
+                            Cos(user_lat_rad) * Cos(Radians(F('location_latitude'))) *
+                            Sin(
+                                (Radians(F('location_longitude')) - user_lon_rad) / 2,
+                                output_field=FloatField()
+                            ) ** 2
+                        ),
+                        output_field=FloatField()
+                    ),
+                    output_field=FloatField()
                 )
             )
-        )
+        ).filter(distance__lte=radius_km)
 
-        # Sort by distance and rating
+        if service_id != 0:
+            vendors = vendors.filter(services_offered__id=service_id)
+
+        # Sort by distance and then by reviews and ratings
         vendors = vendors.order_by('distance', '-reviews_and_ratings')
 
         return vendors
