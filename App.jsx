@@ -1,10 +1,11 @@
 import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createStackNavigator} from '@react-navigation/stack';
-import SplashScreen from '../bg-print/src/components/Splashscreen';
+import SplashScreen from './src/components/Splashscreen';
 import LoginScreen from './src/components/login/Loginscreen';
 import SignUpScreen from './src/components/signup/Signupscreen';
-import HomeScreen from '../bg-print/src/components/Homescreen';
+import VendorsList from './src/components/vendors/VendorsList'
+import HomeScreen from './src/components/Homescreen';
 import ConfirmSignUpScreen from './src/components/signup/ConfirmSignupscreen';
 import MFAScreen from './src/components/login/Mfascreen';
 
@@ -42,6 +43,11 @@ const App = () => {
         <Stack.Screen
           name="Home"
           component={HomeScreen}
+          options={{headerShown: false}}
+        />
+        <Stack.Screen
+          name="Vendors"
+          component={VendorsList}
           options={{headerShown: false}}
         />
       </Stack.Navigator>
