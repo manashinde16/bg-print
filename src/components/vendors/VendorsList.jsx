@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, FlatList, StyleSheet, Text, Image, TextInput, TouchableOpacity } from 'react-native';
-import { API_URL, GOOGLE_API_KEY } from 'react-native-dotenv';
+import {GOOGLE_API_KEY, API_URL} from 'react-native-dotenv';
 import { useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 
 const App = () => {
   const route = useRoute();
@@ -10,6 +11,7 @@ const App = () => {
   const [sortOption, setSortOption] = useState(null);
   const [data, setData] = useState([]);
   const [distanceInfo, setDistanceInfo] = useState({});
+  const navigation = useNavigation(); // Hook to use navigation
 
   useEffect(() => {
     const fetchData = async () => {
@@ -123,35 +125,38 @@ const App = () => {
     const vendorDistanceInfo = distanceInfo[item.id] || { distance: "N/A", time: "N/A" };
 
     return (
+      <View style={styles.cardContainer}>
+        
       <View style={styles.card}>
         <Image 
           source={{ uri: item.vendor_logo_url || 'https://via.placeholder.com/100' }} 
           style={styles.cardImage} 
         />
+          <TouchableOpacity style={styles.ratingContainer}>
+              <Text style={styles.rating}>{item.reviews_and_ratings}</Text>
+            </TouchableOpacity>
         <View style={styles.cardContent}>
           <View style={styles.headerRow}>
-            <Text style={styles.time}>{vendorDistanceInfo.time}</Text>
+          <Text style={styles.name}>{item.business_name}</Text>
+
+          {closestVendorId === item.id && (
+            <TouchableOpacity style={styles.nearAndFastButton}>
+              <Text style={styles.nearAndFastText}>NEAR & FAST</Text>
+            </TouchableOpacity>
+          )}
+          </View>
+          <View style={styles.footerRow}>
+          <Text style={styles.time}>{vendorDistanceInfo.time}</Text>
             <Text style={styles.dot}>•</Text>
             <Text style={styles.distance}>
               {vendorDistanceInfo.distance}
             </Text>
-            {closestVendorId === item.id && (
-              <TouchableOpacity style={styles.nearAndFastButton}>
-                <Text style={styles.nearAndFastText}>NEAR & FAST</Text>
-              </TouchableOpacity>
-            )}
           </View>
-          <View style={styles.footerRow}>
-            <Text style={styles.name}>{item.business_name}</Text>
-            <TouchableOpacity style={styles.ratingContainer}>
-              <Text style={styles.rating}>{item.reviews_and_ratings}</Text>
-            </TouchableOpacity>
-          </View>
-
           <Text style={styles.services}>
             {item.services_offered.map(service => service.name).join(' - ')}
           </Text>
         </View>
+      </View>
       </View>
     );
   };
@@ -159,13 +164,32 @@ const App = () => {
   return (
     <View style={styles.container}>
       <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search"
-          placeholderTextColor="#000"
-          value={searchText}
-          onChangeText={setSearchText}
+
+      <View style={styles.searchBarContainer}>
+      {/* Back Button inside Search Bar */}
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.navigate('Home')} // Navigate to Home
+      >
+        <Image
+          source={require('../../../assets/images/arrowvendor.png')} // Replace with your back icon URL or local image
+          style={styles.backIcon}
         />
+      </TouchableOpacity>
+
+      {/* Search Input */}
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Search....."
+        placeholderTextColor="rgba(136, 136, 136, 0.6)"
+        value={searchText}
+        onChangeText={setSearchText}
+      />
+    </View>
+        <Image 
+        source={require('../../../assets/images/profile.png')}  // Replace with your image URL or local image
+        style={styles.profileIcon}
+      />
       </View>
       <View style={styles.filterContainer}>
         <TouchableOpacity
@@ -193,48 +217,108 @@ const App = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f7f7f7',
-  },
+    backgroundColor: '#F6FCFF',
+    },
   searchContainer: {
+    flexDirection: 'row',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
+    backgroundColor: '#F6FCFF',
+    borderBottomWidth: 0,
     borderBottomColor: '#e0e0e0',
+    alignItems:'center',
+    marginTop:20,
+    position: 'relative',
+    
   },
   searchInput: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
+    flex:1,
+    borderRadius:7,
     padding: 10,
     fontSize: 16,
     color: '#000',
-  },
-  filterContainer: {
+    paddingHorizontal:50,
+    position: 'relative',
+    },
+
+    searchBarContainer: {
+      flex: 1, // Take up remaining space
+      position: 'relative', // To allow absolute positioning of the back button
+      backgroundColor: '#fff',
+      borderRadius: 8,
+      marginRight: 20, // Space between search bar and profile 
+      marginLeft:5,
+      // Shadow for Android
+      elevation: 5,
+      height:48,
+      width:308,
+    },
+
+    backButton: {
+      position: 'absolute', // Absolute position to overlay inside input
+      left: 10, // Adjust left positioning
+      top: '50%', // Center vertically within parent container
+      transform: [{ translateY: -10 }], // Adjust to perfect vertical center
+      zIndex: 1, // Ensure button stays above TextInput
+    },
+    backIcon: {
+      width: 20, // Icon width
+      height: 20, // Icon height
+      position:'relative',
+    },
+
+    profileIcon: {
+      width: 40, // Icon width
+      height: 40, // Icon height
+      borderRadius: 20, // Make the icon 
+      marginRight:10,
+      
+    },
+
+  //Filter Button CSS
+    filterContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    marginLeft:20,
+    marginBottom:10,
+    shadowColor: '#000',
+    shadowOpacity: 0.2, // Increased for better visibility
+    shadowOffset: { width: 0, height: 5 },
+    shadowRadius: 10,
+    elevation: 5, // For Android shadow
+    
   },
   filterButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    justifyContent:'center',
+    alignItems:'center',
     borderWidth: 1,
     borderColor: '#e0e0e0',
     borderRadius: 8,
+    marginRight:10,
+    backgroundColor:'white',
+    height:35,
+    width:85,
   },
   selectedFilter: {
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#3066D8',
   },
   filterText: {
     fontSize: 16,
     color: '#000',
+    fontWeight:'bold',
+  },
+  
+  
+  //Vendors Displaying  CSS
+  
+  cardContainer:{
+    justifyContent:'center',
+    alignContent:'center',
+    alignItems:'center',
   },
   card: {
     backgroundColor: '#fff',
+    width: '90%',
+    maxHeight:263,
     borderRadius: 10,
     overflow: 'hidden',
     marginBottom: 20,
@@ -244,44 +328,57 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 5 },
     shadowRadius: 10,
     elevation: 5, // For Android shadow
-  },
+    justifyContent:'space-around',
+      },
   cardImage: {
-    height: 200,
+    height: 150,
     width: '100%',
     resizeMode: 'cover',
-  },
+    },
   cardContent: {
-    padding: 15,
+   paddingLeft:15,
+   paddingBottom:10,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
+    
+    },
   time: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
-  },
+    fontSize: 10,
+    fontWeight: '900',
+    color: 'rgba(0,0,0,0.3)',
+      },
   dot: {
     marginHorizontal: 5,
     fontSize: 14,
-    color: '#333',
+    color: 'rgba(0,0,0,0.3)',
   },
   distance: {
-    fontSize: 14,
-    color: '#333',
+    fontSize: 10,
+    color: 'rgba(0,0,0,0.3)',
   },
   nearAndFastButton: {
     marginLeft: 5,
-    backgroundColor: '#E0F2F1',
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    backgroundColor: '#E6F4F1',
+    
     borderRadius: 4,
+    position: 'absolute',
+    width:62,
+    height:18,
+    top:15,  
+    right:20,
+    alignContent:'center',
+    alignItems:'center',
+    justifyContent:'center',
+    
+
   },
   nearAndFastText: {
-    fontSize: 12,
+    fontSize: 8,
     fontWeight: '500',
-    color: '#00796B',
+    color: '#004BB8',
+
   },
   name: {
     fontSize: 20,
@@ -289,32 +386,40 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: '#333',
   },
-  services: {
-    fontSize: 14,
-    marginVertical: 8,
-    color: '#666',
-  },
   footerRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems:'center',
+    
   },
+  services: {
+    fontSize: 10,
+    color: '#000',
+    
+  },
+  
   price: {
     fontSize: 14,
     color: '#666',
   },
   ratingContainer: {
-    paddingVertical: 2,
-    paddingHorizontal: 8,
+    
     borderRadius: 5,
     borderWidth: 1,
     borderColor: '#E6F4F1',
     backgroundColor: '#E6F4F1',
+    position: 'absolute',
+    width:32.15,
+    height:19,
+    top:10,
+    right:10,
+    alignContent:'center',
+    alignItems:'center',
   },
   rating: {
-    fontSize: 14,
-    color: '#00796B',
+    fontSize: 11,
+    color: '#004BB8',
     fontWeight: 'bold',
+    alignContent:'center',
   },
 });
 
