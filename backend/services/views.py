@@ -1,12 +1,12 @@
-import math
 from rest_framework import generics
 from .models import Service
 from .serializers import ServiceSerializer
+from vendors.models import Vendor, VendorService
+from vendors.serializers import VendorSerializer
+import math
 from django.db.models import F, FloatField
 from django.db.models.functions import Sqrt, Power, Cast, Radians, Sin, Cos, ATan2
 from rest_framework.response import Response
-from vendors.models import Vendor
-from vendors.serializers import VendorSerializer
 
 class ServiceCreateView(generics.CreateAPIView):
     queryset = Service.objects.all()
@@ -29,11 +29,9 @@ class VendorsByServiceView(generics.ListAPIView):
         user_longitude = float(self.request.query_params.get('longitude', 0))
         radius_km = 10  # Radius in kilometers
 
-        # Convert latitude and longitude to radians
         user_lat_rad = math.radians(user_latitude)
         user_lon_rad = math.radians(user_longitude)
 
-        # Haversine formula to calculate distance
         vendors = Vendor.objects.annotate(
             distance=(
                 6371 * 2 * ATan2(
@@ -65,12 +63,14 @@ class VendorsByServiceView(generics.ListAPIView):
                     output_field=FloatField()
                 )
             )
-        ).filter(distance__lte=radius_km)
+        ).filter(distance__lte=radius_km, is_active=True)
 
         if service_id != 0:
-            vendors = vendors.filter(services_offered__id=service_id)
+            vendors = vendors.filter(
+                vendor_services__service_id=service_id,
+                vendor_services__is_active=True
+            )
 
-        # Sort by distance and then by reviews and ratings
         vendors = vendors.order_by('distance', '-reviews_and_ratings')
 
         return vendors

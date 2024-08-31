@@ -9,17 +9,6 @@ class VendorCreateView(generics.CreateAPIView):
     queryset = Vendor.objects.all()
     serializer_class = VendorSerializer
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        vendor = serializer.save()
-
-        services_offered_ids = request.data.get('services_offered_ids')
-        if services_offered_ids:
-            vendor.services_offered.set(Service.objects.filter(id__in=services_offered_ids))
-
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
 class VendorListView(generics.ListAPIView):
     queryset = Vendor.objects.all()
     serializer_class = VendorSerializer
@@ -31,19 +20,6 @@ class VendorDetailView(generics.RetrieveAPIView):
 class VendorUpdateView(generics.UpdateAPIView):
     queryset = Vendor.objects.all()
     serializer_class = VendorSerializer
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        
-        services_offered_ids = request.data.get('services_offered_ids')
-        if services_offered_ids is not None:
-            instance.services_offered.set(Service.objects.filter(id__in=services_offered_ids))
-        
-        self.perform_update(serializer)
-        return Response(serializer.data)
 
 class VendorDeleteView(generics.DestroyAPIView):
     queryset = Vendor.objects.all()

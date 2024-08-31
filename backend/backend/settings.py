@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-q3ozyw^kp*t^!7$6e8ek$%$dl4vk#f+uh2^q^qyogcc2ey)hl6
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['192.168.1.7','127.0.0.1','192.168.35.180','192.168.0.100']
+ALLOWED_HOSTS = ['192.168.1.12','127.0.0.1','192.168.35.180','192.168.0.100','192.168.0.111']
 
 
 # Application definition
@@ -38,7 +38,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'vendors',
+    'storages',
     'services',
+    'uploads',   # Your new app
 ]
 
 MIDDLEWARE = [
@@ -128,3 +130,20 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+AWS_ACCESS_KEY_ID = 'AKIAYWBJYONE7EX7RGPH '
+AWS_SECRET_ACCESS_KEY = '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'
+AWS_STORAGE_BUCKET_NAME = 'bgprintdocuments'
+AWS_S3_SIGNATURE_NAME = 's3v4',
+AWS_S3_REGION_NAME = 'us-east-1'
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL =  None
+AWS_S3_VERITY = True
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+
+AWS_LOCATION = 'media'
+
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/'

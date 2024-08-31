@@ -6,5 +6,4 @@ urlpatterns = [
     path('register/', ServiceCreateView.as_view(), name='service-register'),
     path('<int:pk>/', ServiceDetailView.as_view(), name='service-detail'),
     path('<int:service_id>/vendors/', VendorsByServiceView.as_view(), name='vendors-by-service'),
-
 ]
