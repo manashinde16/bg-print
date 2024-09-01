@@ -18,21 +18,6 @@ const LoginScreen = ({ navigation }) => {
   const [error, setError] = useState(null);
   const [isModalVisible, setModalVisible] = useState(false);
 
-  useEffect(() => {
-    checkSession();
-  }, []);
-
-  const checkSession = () => {
-    getCurrentUser((err, session) => {
-      if (err) {
-        console.error('Session check error:', err);
-        setUserSession(null);
-      } else {
-        setUserSession(session);
-      }
-    });
-  };
-
   const validateInputs = () => {
     const errors = [];
 

@@ -6,26 +6,43 @@ import { useNavigation } from '@react-navigation/native';
 import {API_URL, GOOGLE_API_KEY} from 'react-native-dotenv';
 import axios from 'axios';
 
-const calculateDistanceAndTime = async (lat1, lon1, lat2, lon2) => {
-  try {
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&origins=${lat1},${lon1}&destinations=${lat2},${lon2}&key=${GOOGLE_API_KEY}`
-    );
-    const data = await response.json();
+// Hardcoded data for location and distance/time
+const HARDCODED_LOCATION = {
+  latitude: 18.536202,
+  longitude: 73.832261,
+  name: 'Baner'
+};
 
-    if (data.status === "OK" && data.rows[0].elements[0].status === "OK") {
-      const distance = data.rows[0].elements[0].distance.text;
-      const time = data.rows[0].elements[0].duration.text;
+const HARDCODED_DISTANCE_TIME = {
+  distance: '2.5 km',
+  time: '10 mins'
+};
 
-      return { distance, time };
-    } else {
-      console.error("Error calculating distance and time:", data.rows[0].elements[0].status, data.rows[0].elements[0].error_message);
-      return { distance: "N/A", time: "N/A" };
-    }
-  } catch (error) {
-    console.error("Error fetching distance matrix data:", error);
-    return { distance: "N/A", time: "N/A" };
-  }
+// Comment out the Google API function and replace with a mock function
+// const calculateDistanceAndTime = async (lat1, lon1, lat2, lon2) => {
+//   try {
+//     const response = await fetch(
+//       `https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&origins=${lat1},${lon1}&destinations=${lat2},${lon2}&key=${GOOGLE_API_KEY}`
+//     );
+//     const data = await response.json();
+
+//     if (data.status === "OK" && data.rows[0].elements[0].status === "OK") {
+//       const distance = data.rows[0].elements[0].distance.text;
+//       const time = data.rows[0].elements[0].duration.text;
+
+//       return { distance, time };
+//     } else {
+//       console.error("Error calculating distance and time:", data.rows[0].elements[0].status, data.rows[0].elements[0].error_message);
+//       return { distance: "N/A", time: "N/A" };
+//     }
+//   } catch (error) {
+//     console.error("Error fetching distance matrix data:", error);
+//     return { distance: "N/A", time: "N/A" };
+//   }
+// };
+
+const mockCalculateDistanceAndTime = async () => {
+  return HARDCODED_DISTANCE_TIME;
 };
 
 const isVendorOpen = (businessHours) => {
@@ -79,48 +96,32 @@ const HomeScreen = () => {
     };
 
     const getCurrentLocation = async () => {
-      try {
-        const response = await axios.post(
-          `https://www.googleapis.com/geolocation/v1/geolocate?key=${GOOGLE_API_KEY}`
-        );
-        const { lat: latitude, lng: longitude } = response.data.location;
-        console.log({latitude, longitude});
-        setCoordinates({ latitude, longitude });
-        fetchLocationName(latitude, longitude);
-        fetchVendorData(latitude, longitude);
-      } catch (error) {
-        console.error("Error fetching location:", error.response?.data || error.message);
-        setErrorMessage(`Error fetching location: ${error.response?.data?.error?.message || error.message}`);
-      }
+      // Comment out the Google API call and use hardcoded data
+      // try {
+      //   const response = await axios.post(
+      //     `https://www.googleapis.com/geolocation/v1/geolocate?key=${GOOGLE_API_KEY}`
+      //   );
+      //   const { lat: latitude, lng: longitude } = response.data.location;
+      //   console.log({latitude, longitude});
+      //   setCoordinates({ latitude, longitude });
+      //   fetchLocationName(latitude, longitude);
+      //   fetchVendorData(latitude, longitude);
+      // } catch (error) {
+      //   console.error("Error fetching location:", error.response?.data || error.message);
+      //   setErrorMessage(`Error fetching location: ${error.response?.data?.error?.message || error.message}`);
+      // }
+      
+      // Use hardcoded location data
+      const { latitude, longitude, name } = HARDCODED_LOCATION;
+      setCoordinates({ latitude, longitude });
+      setLocation(name);
+      fetchVendorData(latitude, longitude);
     };    
 
-    const fetchLocationName = async (lat, lon) => {
-      try {
-        const response = await axios.get('https://maps.googleapis.com/maps/api/geocode/json', {
-          params: {
-            latlng: `${lat},${lon}`,
-            key: GOOGLE_API_KEY,
-          },
-        });
-    
-        const data = response.data;
-        if (data.results && data.results.length > 0) {
-          const addressComponents = data.results[0].address_components;
-          const specificLocation = addressComponents.find(component =>
-            component.types.includes('sublocality_level_1') ||
-            component.types.includes('neighborhood') ||
-            component.types.includes('locality')
-          );
-          const locationName = specificLocation ? specificLocation.long_name : 'Local location not found';
-          setLocation(locationName);
-        } else {
-          setLocation('Location not found');
-        }
-      } catch (error) {
-        console.error('Error fetching location name:', error.message);
-        setLocation('Error fetching location name');
-      }
-    };
+    // Comment out the Google API function for fetching location name
+    // const fetchLocationName = async (lat, lon) => {
+    //   ... (previous implementation)
+    // };
 
     const fetchVendorData = async (latitude, longitude) => {
       try {
@@ -159,8 +160,8 @@ const HomeScreen = () => {
       if (vendorData.length > 0 && coordinates.latitude && coordinates.longitude) {
         const updatedVendorData = await Promise.all(
           vendorData.map(async (vendor) => {
-            const { location_latitude: vendorLat, location_longitude: vendorLon } = vendor;
-            const result = await calculateDistanceAndTime(coordinates.latitude, coordinates.longitude, vendorLat, vendorLon);
+            // Use the mock function instead of the real one
+            const result = await mockCalculateDistanceAndTime();
             return { ...vendor, distance: result.distance, time: result.time };
           })
         );

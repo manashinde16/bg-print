@@ -4,9 +4,10 @@ import {createStackNavigator} from '@react-navigation/stack';
 import SplashScreen from './src/components/Splashscreen';
 import LoginScreen from './src/components/login/Loginscreen';
 import SignUpScreen from './src/components/signup/Signupscreen';
-import VendorsList from './src/components/vendors/VendorsList'
-import HomeScreen from './src/components/Homescreen';
+import VendorsList from './src/components/Vendors/VendorsList'
+import HomeScreen from './src/components/home/Homescreen';
 import ConfirmSignUpScreen from './src/components/signup/ConfirmSignupscreen';
+import UploadScreen from './src/components/Upload/UploadFiles';
 import MFAScreen from './src/components/login/Mfascreen';
 
 const Stack = createStackNavigator();
@@ -48,6 +49,11 @@ const App = () => {
         <Stack.Screen
           name="Vendors"
           component={VendorsList}
+          options={{headerShown: false}}
+        />
+        <Stack.Screen
+          name="Upload"
+          component={UploadScreen}
           options={{headerShown: false}}
         />
       </Stack.Navigator>
