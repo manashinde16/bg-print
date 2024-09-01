@@ -1,20 +1,34 @@
-import React, { useState, useEffect } from 'react';
-import { View, FlatList, StyleSheet, Text, Image, TextInput, TouchableOpacity } from 'react-native';
-import { API_URL, GOOGLE_API_KEY } from 'react-native-dotenv';
-import { useRoute } from '@react-navigation/native';
+import React, {useState, useEffect} from 'react';
+import {
+  View,
+  FlatList,
+  StyleSheet,
+  Text,
+  Image,
+  TextInput,
+  TouchableOpacity,
+} from 'react-native';
+
+import {useRoute} from '@react-navigation/native';
+import {GOOGLE_API_KEY, API_URL} from 'react-native-dotenv';
 
 const App = () => {
   const route = useRoute();
-  const { serviceId, latitude, longitude } = route.params || {};
+  const {serviceId, latitude, longitude} = route.params || {};
   const [searchText, setSearchText] = useState('');
   const [sortOption, setSortOption] = useState(null);
   const [data, setData] = useState([]);
   const [distanceInfo, setDistanceInfo] = useState({});
 
+  console.log('API_URL:', API_URL);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         const url = `${API_URL}/services/${serviceId}/vendors/?latitude=${latitude}&longitude=${longitude}`;
+        console.log('lat', latitude);
+        console.log('long', longitude);
+
         const response = await fetch(url);
         if (!response.ok) {
           throw new Error('Network response was not ok');
@@ -32,13 +46,15 @@ const App = () => {
     const fetchDistanceInfo = async () => {
       try {
         for (const item of data) {
-          const { distance, time } = await calculateDistanceAndTime(
-            latitude, longitude,
-            parseFloat(item.location_latitude), parseFloat(item.location_longitude)
+          const {distance, time} = await calculateDistanceAndTime(
+            latitude,
+            longitude,
+            parseFloat(item.location_latitude),
+            parseFloat(item.location_longitude),
           );
           setDistanceInfo(prev => ({
             ...prev,
-            [item.id]: { distance, time }
+            [item.id]: {distance, time},
           }));
         }
       } catch (error) {
@@ -47,23 +63,37 @@ const App = () => {
     };
 
     fetchDistanceInfo();
-  }, [data]);
+  }, [data, latitude, longitude]);
 
-  const filteredData = data.filter((item) =>
-    item.business_name.toLowerCase().includes(searchText.toLowerCase()) ||
-    item.services_offered.some(service =>
-      service.name.toLowerCase().includes(searchText.toLowerCase())
-    )
+  const filteredData = data.filter(
+    item =>
+      item.business_name.toLowerCase().includes(searchText.toLowerCase()) ||
+      item.services_offered.some(service =>
+        service.name.toLowerCase().includes(searchText.toLowerCase()),
+      ),
   );
 
+  // eslint-disable-next-line no-shadow
   const sortData = (data, sortOption) => {
     switch (sortOption) {
       case 'rating':
-        return [...data].sort((a, b) => b.reviews_and_ratings - a.reviews_and_ratings);
+        return [...data].sort(
+          (a, b) => b.reviews_and_ratings - a.reviews_and_ratings,
+        );
       case 'distance':
         return [...data].sort((a, b) => {
-          const distanceA = calculateDistance(latitude, longitude, a.location_latitude, a.location_longitude);
-          const distanceB = calculateDistance(latitude, longitude, b.location_latitude, b.location_longitude);
+          const distanceA = calculateDistance(
+            latitude,
+            longitude,
+            a.location_latitude,
+            a.location_longitude,
+          );
+          const distanceB = calculateDistance(
+            latitude,
+            longitude,
+            b.location_latitude,
+            b.location_longitude,
+          );
           return distanceA - distanceB;
         });
       default:
@@ -72,14 +102,14 @@ const App = () => {
   };
 
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const toRad = (value) => (value * Math.PI) / 180;
+    const toRad = value => (value * Math.PI) / 180;
     const R = 6371; // Radius of the Earth in km
 
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
-    const a = Math.sin(dLat / 2) ** 2 +
-              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-              Math.sin(dLon / 2) ** 2;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     return R * c;
@@ -88,53 +118,57 @@ const App = () => {
   const calculateDistanceAndTime = async (lat1, lon1, lat2, lon2) => {
     try {
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&origins=${lat1},${lon1}&destinations=${lat2},${lon2}&key=${GOOGLE_API_KEY}`
+        `https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&origins=${lat1},${lon1}&destinations=${lat2},${lon2}&key=${GOOGLE_API_KEY}`,
       );
+      // eslint-disable-next-line no-shadow
       const data = await response.json();
 
-      if (data.status === "OK" && data.rows[0].elements[0].status === "OK") {
+      if (data.status === 'OK' && data.rows[0].elements[0].status === 'OK') {
         const distance = data.rows[0].elements[0].distance.text;
         const time = data.rows[0].elements[0].duration.text;
 
-        return { distance, time };
+        return {distance, time};
       } else {
-        console.error("Error calculating distance and time:", data.rows[0].elements[0].status, data.rows[0].elements[0].error_message);
-        return { distance: "N/A", time: "N/A" };
+        console.error(
+          'Error calculating distance and time:',
+          data.rows[0].elements[0].status,
+          data.rows[0].elements[0].error_message,
+        );
+        return {distance: 'N/A', time: 'N/A'};
       }
     } catch (error) {
-      console.error("Error fetching distance matrix data:", error);
-      return { distance: "N/A", time: "N/A" };
+      console.error('Error fetching distance matrix data:', error);
+      return {distance: 'N/A', time: 'N/A'};
     }
   };
 
   const filteredAndSortedData = sortData(filteredData, sortOption);
 
   // Find the vendor with the shortest distance
-  const closestVendorId = sortOption === 'distance' && filteredAndSortedData.length > 0
-    ? filteredAndSortedData[0].id
-    : null;
+  const closestVendorId =
+    sortOption === 'distance' && filteredAndSortedData.length > 0
+      ? filteredAndSortedData[0].id
+      : null;
 
-  const renderItem = ({ item }) => {
-    const distance = calculateDistance(
-      latitude, longitude,
-      parseFloat(item.location_latitude), parseFloat(item.location_longitude)
-    ) * 111.19; // Convert to km
-
-    const vendorDistanceInfo = distanceInfo[item.id] || { distance: "N/A", time: "N/A" };
+  const renderItem = ({item}) => {
+    const vendorDistanceInfo = distanceInfo[item.id] || {
+      distance: 'N/A',
+      time: 'N/A',
+    };
 
     return (
       <View style={styles.card}>
-        <Image 
-          source={{ uri: item.vendor_logo_url || 'https://via.placeholder.com/100' }} 
-          style={styles.cardImage} 
+        <Image
+          source={{
+            uri: item.vendor_logo_url || 'https://via.placeholder.com/100',
+          }}
+          style={styles.cardImage}
         />
         <View style={styles.cardContent}>
           <View style={styles.headerRow}>
             <Text style={styles.time}>{vendorDistanceInfo.time}</Text>
             <Text style={styles.dot}>•</Text>
-            <Text style={styles.distance}>
-              {vendorDistanceInfo.distance}
-            </Text>
+            <Text style={styles.distance}>{vendorDistanceInfo.distance}</Text>
             {closestVendorId === item.id && (
               <TouchableOpacity style={styles.nearAndFastButton}>
                 <Text style={styles.nearAndFastText}>NEAR & FAST</Text>
@@ -169,21 +203,25 @@ const App = () => {
       </View>
       <View style={styles.filterContainer}>
         <TouchableOpacity
-          style={[styles.filterButton, sortOption === 'rating' ? styles.selectedFilter : null]}
-          onPress={() => setSortOption('rating')}
-        >
+          style={[
+            styles.filterButton,
+            sortOption === 'rating' ? styles.selectedFilter : null,
+          ]}
+          onPress={() => setSortOption('rating')}>
           <Text style={styles.filterText}>Rating</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.filterButton, sortOption === 'distance' ? styles.selectedFilter : null]}
-          onPress={() => setSortOption('distance')}
-        >
+          style={[
+            styles.filterButton,
+            sortOption === 'distance' ? styles.selectedFilter : null,
+          ]}
+          onPress={() => setSortOption('distance')}>
           <Text style={styles.filterText}>Nearest</Text>
         </TouchableOpacity>
       </View>
       <FlatList
         data={filteredAndSortedData}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={item => item.id.toString()}
         renderItem={renderItem}
       />
     </View>
@@ -241,7 +279,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 10,
     shadowColor: '#000',
     shadowOpacity: 0.2, // Increased for better visibility
-    shadowOffset: { width: 0, height: 5 },
+    shadowOffset: {width: 0, height: 5},
     shadowRadius: 10,
     elevation: 5, // For Android shadow
   },

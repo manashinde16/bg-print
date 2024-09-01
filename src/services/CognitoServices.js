@@ -4,10 +4,7 @@ import {
   AuthenticationDetails,
   CognitoUserAttribute,
 } from 'amazon-cognito-identity-js';
-import {
-  REACT_APP_USER_POOL_ID,
-  REACT_APP_CLIENT_ID,
-} from 'react-native-dotenv';
+import {REACT_APP_USER_POOL_ID, REACT_APP_CLIENT_ID} from 'react-native-dotenv';
 
 const poolData = {
   UserPoolId: REACT_APP_USER_POOL_ID,

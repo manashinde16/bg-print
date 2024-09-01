@@ -1,13 +1,15 @@
 import React from 'react';
 import {NavigationContainer} from '@react-navigation/native';
 import {createStackNavigator} from '@react-navigation/stack';
-import SplashScreen from './src/components/Splashscreen';
-import LoginScreen from './src/components/login/Loginscreen';
-import SignUpScreen from './src/components/signup/Signupscreen';
-import VendorsList from './src/components/vendors/VendorsList'
-import HomeScreen from './src/components/Homescreen';
-import ConfirmSignUpScreen from './src/components/signup/ConfirmSignupscreen';
-import MFAScreen from './src/components/login/Mfascreen';
+import SplashScreen from '../bg-print/src/components/splash/Splashscreen';
+import LoginScreen from '../bg-print/src/components/login/Loginscreen';
+import SignUpScreen from '../bg-print/src/components/signup/Signupscreen';
+import VendorsList from '../bg-print/src/components/vendors/VendorsList';
+import Homescreen from '../bg-print/src/components/home/Homescreen';
+import ConfirmSignUpScreen from '../bg-print/src/components/signup/ConfirmSignupscreen';
+import MFAScreen from '../bg-print/src/components/login/Mfascreen';
+import Menu from '../bg-print/src/components/menu/Menuscreen';
+import Servicesscreen from './src/components/services/Servicesscreen';
 
 const Stack = createStackNavigator();
 
@@ -42,7 +44,12 @@ const App = () => {
         />
         <Stack.Screen
           name="Home"
-          component={HomeScreen}
+          component={HomescreenWithMenu}
+          options={{headerShown: false}}
+        />
+        <Stack.Screen
+          name="Services"
+          component={ServicesscreenWithMenu}
           options={{headerShown: false}}
         />
         <Stack.Screen
@@ -52,6 +59,24 @@ const App = () => {
         />
       </Stack.Navigator>
     </NavigationContainer>
+  );
+};
+
+const HomescreenWithMenu = ({route, navigation}) => {
+  return (
+    <>
+      <Homescreen route={route} navigation={navigation} />
+      <Menu />
+    </>
+  );
+};
+
+const ServicesscreenWithMenu = ({route, navigation}) => {
+  return (
+    <>
+      <Servicesscreen route={route} navigation={navigation} />
+      <Menu />
+    </>
   );
 };
 
