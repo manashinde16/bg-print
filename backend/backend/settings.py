@@ -38,20 +38,29 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'vendors',
+    'corsheaders',
     'storages',
     'services',
+    'payments',
     'uploads',   # Your new app
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# If you want to allow all origins (not recommended for production)
+CORS_ALLOW_ALL_ORIGINS = True
+
+# For CSRF handling
+CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = 'backend.urls'
 
@@ -147,3 +156,6 @@ AWS_LOCATION = 'media'
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/'
+
+RAZORPAY_KEY_ID = 'rzp_test_HwXC97y8TLwYo4'
+RAZORPAY_KEY_SECRET = 'CQDt0yP2JxKutzKUuC1tWNnO'
