@@ -3,11 +3,12 @@ import {
   View, Text, StyleSheet, ScrollView, ActivityIndicator,
   TouchableOpacity, Image, Alert, Modal, Dimensions
 } from 'react-native';
-import CheckBox from '@react-native-community/checkbox';
 import DocumentPicker from 'react-native-document-picker';
 import axios from 'axios';
 import { API_URL } from 'react-native-dotenv';
-import Icon from 'react-native-vector-icons/FontAwesome';
+import CloudUploadIcon from '../../../assets/icons/cloud-upload.svg';
+import FileIcon from '../../../assets/icons/file.svg';
+import TrashIcon from '../../../assets/icons/trash.svg';
 import { BlurView } from '@react-native-community/blur';
 
 const { width, height } = Dimensions.get('window');
@@ -16,10 +17,11 @@ const UploadFilePage = ({ route, navigation }) => {
   const { vendorId, specificServiceId } = route.params;
   const [vendorDetails, setVendorDetails] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
-  const { width, height } = Dimensions.get('window');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedServices, setSelectedServices] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [fileServiceMap, setFileServiceMap] = useState({});
+  const totalAmount = 10;
 
   useEffect(() => {
     const fetchVendorDetails = async () => {
@@ -38,29 +40,32 @@ const UploadFilePage = ({ route, navigation }) => {
     fetchVendorDetails();
   }, [vendorId, specificServiceId]);
 
-  const handleFileSelection = async () => {
+  const handleFileSelection = async (serviceId) => {
     try {
-      const results = await DocumentPicker.pick({
+      const result = await DocumentPicker.pick({
         type: [DocumentPicker.types.allFiles],
-        allowMultiSelection: true
+        allowMultiSelection: false
       });
-      const newFiles = results.filter((newFile) =>
-        !selectedFiles.some((file) => file.name === newFile.name)
-      );
-      if (selectedFiles.length + newFiles.length > 5) {
-        Alert.alert('File Limit Exceeded', 'You can only select up to 5 files.');
+      
+      const newFile = result[0];
+      if (selectedFiles.some(file => file.name === newFile.name)) {
+        Alert.alert('Duplicate File', 'This file has already been selected.');
         return;
       }
-      if (newFiles.length < results.length) {
-        Alert.alert('Duplicate Files', 'Some files were not added as they were already selected.');
+      
+      if (selectedFiles.length >= 5) {
+        Alert.alert('File Limit Exceeded', 'You can only select up to 5 files in total.');
+        return;
       }
-      setSelectedFiles([...selectedFiles, ...newFiles]);
+
+      setSelectedFiles(prevFiles => [...prevFiles, newFile]);
+      setFileServiceMap(prevMap => ({...prevMap, [newFile.name]: serviceId}));
     } catch (err) {
       if (DocumentPicker.isCancel(err)) {
         console.log('User cancelled the picker');
       } else {
-        console.error('Error selecting files:', err);
-        Alert.alert('Error', 'An error occurred while selecting files. Please try again.');
+        console.error('Error selecting file:', err);
+        Alert.alert('Error', 'An error occurred while selecting the file. Please try again.');
       }
     }
   };
@@ -70,26 +75,19 @@ const UploadFilePage = ({ route, navigation }) => {
       Alert.alert('No files selected', 'Please select at least one file to upload.');
       return;
     }
-    if (selectedServices.length === 0) {
-      Alert.alert('No services selected', 'Please select at least one service.');
-      return;
-    }
-    if (selectedFiles.length > 5 || selectedServices.length > 5) {
-      Alert.alert('Limit Exceeded', 'You can only upload up to 5 files and select up to 5 services.');
-      return;
-    }
 
     setIsUploading(true);
     const formData = new FormData();
-    selectedFiles.forEach((file, index) => {
+
+    selectedFiles.forEach((file) => {
       formData.append('files', {
         uri: file.uri,
         type: file.type,
         name: file.name,
       });
+      formData.append('service_ids', fileServiceMap[file.name]);
     });
     formData.append('vendor_id', vendorId);
-    formData.append('service_ids', selectedServices.join(','));
 
     try {
       const response = await axios.post(`${API_URL}/uploads/store-file-url/`, formData, {
@@ -98,9 +96,23 @@ const UploadFilePage = ({ route, navigation }) => {
         },
       });
       if (response.status === 201) {
-        Alert.alert('Success', 'Files have been successfully uploaded.');
-        setSelectedFiles([]);
-        setSelectedServices([]);
+        Alert.alert(
+          'Success',
+          'Files have been successfully uploaded.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setSelectedFiles([]);
+                setFileServiceMap({});
+                navigation.navigate('Payment', { 
+                  vendorId: vendorId,
+                  amount: totalAmount
+                });
+              }
+            }
+          ]
+        );
       } else {
         Alert.alert('Upload Failed', 'An error occurred while uploading files.');
       }
@@ -112,12 +124,13 @@ const UploadFilePage = ({ route, navigation }) => {
     }
   };
 
-  const toggleService = (serviceId) => {
-    setSelectedServices(prevSelected => 
-      prevSelected.includes(serviceId)
-        ? prevSelected.filter(id => id !== serviceId)
-        : [...prevSelected, serviceId]
-    );
+  const removeFile = (fileName) => {
+    setSelectedFiles(prevFiles => prevFiles.filter(file => file.name !== fileName));
+    setFileServiceMap(prevMap => {
+      const newMap = {...prevMap};
+      delete newMap[fileName];
+      return newMap;
+    });
   };
 
   if (isLoading) {
@@ -145,22 +158,18 @@ const UploadFilePage = ({ route, navigation }) => {
             const isChecked = selectedServices.includes(service.id);
             return (
               <View key={service.id} style={styles.serviceItem}>
-                <CheckBox
-                style={styles.CheckBoxBorder}
-                  value={isChecked}
-                  onValueChange={() => toggleService(service.id)}
-                />
                 <Image source={{ uri: service.icon_url }} style={styles.serviceIcon} />
                 <Text style={styles.serviceName}>{service.name}</Text>
+                <TouchableOpacity 
+                  style={styles.uploadButton} 
+                  onPress={() => handleFileSelection(service.id)}
+                >
+                  <CloudUploadIcon width={24} height={24} />
+                </TouchableOpacity>
               </View>
             );
           })}
         </View>
-
-        <TouchableOpacity style={styles.uploadButton} onPress={handleFileSelection}>
-          <Icon name="cloud-upload" size={24} color="#007AFF" />
-          <Text style={styles.uploadButtonText}>Click here to upload files</Text>
-        </TouchableOpacity>
 
         <Text style={styles.fileInfoText}>
           Maximum individual file size: 100MB, Maximum total file size: 50MB, 
@@ -169,16 +178,19 @@ const UploadFilePage = ({ route, navigation }) => {
 
         {selectedFiles.map((file, index) => (
           <View key={index} style={styles.fileItem}>
-            <Icon name="file" size={20} color="#007AFF" />
+            <FileIcon width={20} height={20} />
             <Text style={styles.fileName}>{file.name}</Text>
-            <TouchableOpacity onPress={() => setSelectedFiles(selectedFiles.filter((_, i) => i !== index))}>
-              <Icon name="trash" size={20} color="#FF3B30" />
+            <Text style={styles.serviceTag}>
+              {vendorDetails.vendor_services.find(vs => vs.service.id === fileServiceMap[file.name])?.service.name}
+            </Text>
+            <TouchableOpacity onPress={() => removeFile(file.name)}>
+              <TrashIcon width={20} height={20} />
             </TouchableOpacity>
           </View>
         ))}
 
         <TouchableOpacity style={styles.addToCartButton} onPress={handleUploadFiles}>
-          <Text style={styles.addToCartButtonText}>Add to Cart →</Text>
+          <Text style={styles.addToCartButtonText}>Upload Files →</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -203,7 +215,7 @@ const UploadFilePage = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F2F7',
+    backgroundColor: '#F6FCFF',
   },
   headerContainer: {
     width: width,
@@ -267,12 +279,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    borderStyle: 'dashed',
-    borderRadius: 8,
-    padding: 20,
-    marginBottom: 10,
+    padding: 5,
   },
   uploadButtonText: {
     fontSize: 16,
@@ -358,6 +365,14 @@ const styles = StyleSheet.create({
     color: '#FF3B30',
     textAlign: 'center',
     marginTop: 20,
+  },
+  serviceTag: {
+    fontSize: 12,
+    color: '#007AFF',
+    backgroundColor: '#E1F0FF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
 });
 

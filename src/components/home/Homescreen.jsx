@@ -1,28 +1,46 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, Image, TouchableOpacity, PermissionsAndroid, Platform, FlatList } from 'react-native';
-import Icon from 'react-native-vector-icons/FontAwesome';
-import Icon2 from 'react-native-vector-icons/Entypo';
-import { useNavigation } from '@react-navigation/native';
-import {API_URL, GOOGLE_API_KEY} from 'react-native-dotenv';
+/* eslint-disable react-native/no-inline-styles */
+import React, {useState, useEffect, useCallback, useMemo} from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TextInput,
+  Image,
+  TouchableOpacity,
+  PermissionsAndroid,
+  Platform,
+  FlatList,
+  Animated,
+  Easing,
+  SafeAreaView,
+} from 'react-native';
+import {useNavigation} from '@react-navigation/native';
 import axios from 'axios';
+import Location from '../../../assets/icons/location.svg';
+import Saly from '../../../assets/icons/Saly-16.svg';
+import Bell from '../../../assets/icons/notification-bell.svg';
+import Searchbar from '../../../assets/icons/search.svg';
+import {API_URL} from 'react-native-dotenv';
+import Icon from 'react-native-vector-icons/FontAwesome';
+import MenuBar from '../menu/MenuBar';
 
 // Hardcoded data for location and distance/time
 const HARDCODED_LOCATION = {
   latitude: 18.536202,
   longitude: 73.832261,
-  name: 'Baner'
+  name: 'Wakad',
 };
 
 const HARDCODED_DISTANCE_TIME = {
   distance: '2.5 km',
-  time: '10 mins'
+  time: '10 mins',
 };
 
 // Comment out the Google API function and replace with a mock function
 // const calculateDistanceAndTime = async (lat1, lon1, lat2, lon2) => {
 //   try {
 //     const response = await fetch(
-//       `https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&origins=${lat1},${lon1}&destinations=${lat2},${lon2}&key=${GOOGLE_API_KEY}`
+//       https://maps.googleapis.com/maps/api/distancematrix/json?units=metric&origins=${lat1},${lon1}&destinations=${lat2},${lon2}&key=${GOOGLE_API_KEY}
 //     );
 //     const data = await response.json();
 
@@ -45,13 +63,15 @@ const mockCalculateDistanceAndTime = async () => {
   return HARDCODED_DISTANCE_TIME;
 };
 
-const isVendorOpen = (businessHours) => {
+const isVendorOpen = businessHours => {
   const now = new Date();
   const dayOfWeek = now.getDay();
   const currentTime = now.getHours() * 100 + now.getMinutes();
 
   const todayHours = businessHours.find(hour => hour.day === dayOfWeek);
-  if (!todayHours) return false;
+  if (!todayHours) {
+    return false;
+  }
 
   const openTime = parseInt(todayHours.open_time.replace(':', ''), 10);
   const closeTime = parseInt(todayHours.close_time.replace(':', ''), 10);
@@ -59,13 +79,90 @@ const isVendorOpen = (businessHours) => {
   return currentTime >= openTime && currentTime <= closeTime;
 };
 
-const HomeScreen = () => {
+const HomeScreen = ({navigation}) => {
   const [location, setLocation] = useState('Fetching location...');
   const [vendorData, setVendorData] = useState([]);
   const [errorMessage, setErrorMessage] = useState(null);
   const [servicesData, setServicesData] = useState([]);
-  const [coordinates, setCoordinates] = useState({ latitude: null, longitude: null });
-  const navigation = useNavigation();
+  const [coordinates, setCoordinates] = useState({
+    latitude: null,
+    longitude: null,
+  });
+  const [isSearchVisible, setIsSearchVisible] = useState(false); // State to handle search visibility
+  const [searchAnim] = useState(new Animated.Value(0));
+  const [searchTerm, setSearchTerm] = useState('');
+
+
+  const filteredServicesData = useMemo(() => {
+    return servicesData.filter(service => service.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  }, [searchTerm, servicesData]);
+
+  const ServiceItem = React.memo(({ item, onPress }) => (
+    <TouchableOpacity style={styles.serviceItem} onPress={onPress}>
+      <Image source={{ uri: item.icon_url }} style={styles.serviceIcon} />
+      <Text style={styles.serviceText}>{item.name}</Text>
+    </TouchableOpacity>
+  ));
+
+  const VendorItem = React.memo(({ item, onPress, coordinates }) => {
+    const servicesListnavi = item.vendor_services.map(service => ({
+      id: service.service.id,
+      name: service.service.name,
+    }));
+    const servicesList = servicesListnavi.map(service => service.name).join(' - ');
+    const isOpen = isVendorOpen(item.business_hours);
+  
+    return (
+      <TouchableOpacity style={styles.providerCard} onPress={onPress}>
+        <Image
+          source={{
+            uri: item.vendor_logo_url || 'https://via.placeholder.com/400x200.png?text=Service+Image',
+          }}
+          style={styles.providerImage}
+        />
+        <View style={styles.ratingContainer}>
+              <Text style={styles.ratingText}>{item.reviews_and_ratings}</Text>
+            </View>
+        <View style={styles.providerDetails}>
+          <Text style={styles.providerName}>{item.business_name}</Text>
+          <Text style={styles.serviceList}>{servicesList}</Text>
+          <View style={styles.footerRow}>
+                  <Text style={styles.time}>{item.distance || 'Calculating'}</Text>
+                  <Text style={styles.dot}>•</Text>
+                  <Text style={styles.distance}>
+                    {item.time || '...'}
+                  </Text>
+                  <Text style={styles.dot}>•</Text>
+                  <Text style={[styles.statusTag, { color: isOpen ? 'green' : 'red' }]}>
+                    {isOpen ? 'Open Now' : 'Closed Now'}
+                  </Text>
+                </View>
+        </View>
+      </TouchableOpacity>
+    );
+  });
+
+  useEffect(() => {
+    const animateSearchBar = () => {
+      Animated.timing(searchAnim, {
+        toValue: isSearchVisible ? 1 : 0,
+        duration: 300,
+        easing: Easing.inOut(Easing.ease), // Adding Easing function
+        useNativeDriver: false,
+      }).start();
+    };
+
+    animateSearchBar();
+  }, [isSearchVisible, searchAnim]);
+
+  const toggleSearchBar = () => {
+    setIsSearchVisible(!isSearchVisible);
+  };
+
+  const searchBarWidth = searchAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0%', '70%'],
+  });
 
   useEffect(() => {
     const requestLocationPermission = async () => {
@@ -79,7 +176,7 @@ const HomeScreen = () => {
               buttonNeutral: 'Ask Me Later',
               buttonNegative: 'Cancel',
               buttonPositive: 'OK',
-            }
+            },
           );
           if (granted === PermissionsAndroid.RESULTS.GRANTED) {
             getCurrentLocation();
@@ -99,7 +196,7 @@ const HomeScreen = () => {
       // Comment out the Google API call and use hardcoded data
       // try {
       //   const response = await axios.post(
-      //     `https://www.googleapis.com/geolocation/v1/geolocate?key=${GOOGLE_API_KEY}`
+      //     https://www.googleapis.com/geolocation/v1/geolocate?key=${GOOGLE_API_KEY}
       //   );
       //   const { lat: latitude, lng: longitude } = response.data.location;
       //   console.log({latitude, longitude});
@@ -108,15 +205,15 @@ const HomeScreen = () => {
       //   fetchVendorData(latitude, longitude);
       // } catch (error) {
       //   console.error("Error fetching location:", error.response?.data || error.message);
-      //   setErrorMessage(`Error fetching location: ${error.response?.data?.error?.message || error.message}`);
+      //   setErrorMessage(Error fetching location: ${error.response?.data?.error?.message || error.message});
       // }
-      
+
       // Use hardcoded location data
-      const { latitude, longitude, name } = HARDCODED_LOCATION;
-      setCoordinates({ latitude, longitude });
+      const {latitude, longitude, name} = HARDCODED_LOCATION;
+      setCoordinates({latitude, longitude});
       setLocation(name);
       fetchVendorData(latitude, longitude);
-    };    
+    };
 
     // Comment out the Google API function for fetching location name
     // const fetchLocationName = async (lat, lon) => {
@@ -131,7 +228,7 @@ const HomeScreen = () => {
             longitude: longitude,
           },
         });
-        
+
         const data = response.data;
         const activeVendors = data.filter(vendor => vendor.is_active);
         setVendorData(activeVendors);
@@ -140,7 +237,7 @@ const HomeScreen = () => {
         setErrorMessage('Error fetching vendor data. Please try again later.');
       }
     };
-   
+
     const fetchServicesData = async () => {
       try {
         const response = await axios.get(`${API_URL}/services/`);
@@ -157,92 +254,74 @@ const HomeScreen = () => {
 
   useEffect(() => {
     const calculateDistanceAndTimeForVendors = async () => {
-      if (vendorData.length > 0 && coordinates.latitude && coordinates.longitude) {
+      if (
+        vendorData.length > 0 &&
+        coordinates.latitude &&
+        coordinates.longitude
+      ) {
         const updatedVendorData = await Promise.all(
-          vendorData.map(async (vendor) => {
+          vendorData.map(async vendor => {
             // Use the mock function instead of the real one
             const result = await mockCalculateDistanceAndTime();
-            return { ...vendor, distance: result.distance, time: result.time };
-          })
+            return {...vendor, distance: result.distance, time: result.time};
+          }),
         );
         setVendorData(updatedVendorData);
       }
     };
-  
+
     calculateDistanceAndTimeForVendors();
-  }, [vendorData, coordinates]);  
+  }, [vendorData, coordinates]);
 
-  const renderServiceItem = ({ item }) => (
-    <TouchableOpacity 
-      style={styles.serviceItem}
+  const renderServiceItem = useCallback(({ item }) => (
+    <ServiceItem
+      item={item}
       onPress={() => navigation.navigate('Vendors', { serviceId: item.id, ...coordinates })}
-    >
-      <Image source={{ uri: item.icon_url }} style={styles.serviceIcon} />
-      <Text style={styles.serviceText}>{item.name}</Text>
-    </TouchableOpacity>
-  );
+    />
+  ), [coordinates, navigation]);
 
-  const renderVendorItem = ({ item }) => {
-    const servicesListnavi = item.vendor_services.map(service => ({
-      id: service.service.id,
-      name: service.service.name,
-    }));
-    const servicesList = servicesListnavi.map(service => service.name).join(', ');
-    const isOpen = isVendorOpen(item.business_hours);
+  const renderVendorItem = useCallback(({ item }) => (
+    <VendorItem
+      item={item}
+      onPress={() => {
+        if (coordinates.latitude && coordinates.longitude) {
+          navigation.navigate('Upload', {
+            vendorId: item.id,
+            services: item.vendor_services.map(service => ({
+              id: service.service.id,
+              name: service.service.name,
+            })),
+            latitude: coordinates.latitude,
+            longitude: coordinates.longitude,
+          });
+        } else {
+          setErrorMessage('Location data is not available.');
+        }
+      }}
+      coordinates={coordinates}
+    />
+  ), [coordinates, navigation]);
 
-    return (
-      <TouchableOpacity
-        style={styles.providerCard}
-        onPress={() => {
-          if (coordinates.latitude && coordinates.longitude) {
-            navigation.navigate('Upload', {
-              vendorId: item.id,
-              services: servicesListnavi,
-              latitude: coordinates.latitude,
-              longitude: coordinates.longitude,
-            });
-          } else {
-            setErrorMessage('Location data is not available.');
-          }
-        }}
-      >
-        <Image
-          source={{ uri: item.vendor_logo_url || 'https://via.placeholder.com/400x200.png?text=Service+Image' }}
-          style={styles.providerImage}
-        />
-        <View style={styles.providerDetails}>
-          <Text style={styles.providerName}>{item.business_name}</Text>
-          <Text style={styles.providerInfo} numberOfLines={2}>{item.address}</Text>
-          <Text style={styles.serviceList}>{servicesList}</Text>
-          <View style={styles.providerFooter}>
-            <Text style={styles.timeDistance}>{item.distance || 'Calculating'}</Text>
-            <Text style={styles.timeDistance}>{item.time || '...'}</Text>
-            <View style={styles.ratingContainer}>
-              <Icon2 name="star" size={12} color="#FFD700" />
-              <Text style={styles.ratingText}>{item.reviews_and_ratings}</Text>
-            </View>
-            <Text style={[styles.statusTag, { color: isOpen ? 'green' : 'red' }]}>
-              {isOpen ? 'Open Now' : 'Closed Now'}
-            </Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const memoizedServicesData = useMemo(() => servicesData.slice(0, 8), [servicesData]);
+  const memoizedVendorData = useMemo(() => vendorData, [vendorData]);
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.backgroundRectangle} />
-
+  const renderContent = useCallback(() => (
+    <SafeAreaView style={styles.container}>
+    <View style={styles.content}>
       <View style={styles.locationContainer}>
-        <Icon name="map-marker" size={20} color="#fff" style={styles.locationIcon} />
-        <Text style={styles.locationText}>Location</Text>
-        <Text style={styles.locationName}>{location}</Text>
+        <Text style={styles.locationText}>Current Location</Text>
+        <Text style={styles.locationName}>
+          <Location />
+          {location}
+        </Text>
       </View>
 
-      <View style={styles.searchContainer}>
-        <Icon name="search" size={20} color="#777" />
-        <TextInput placeholder="Search services or providers" style={styles.searchInput} placeholderTextColor="#777" />
+      <View style={styles.bannerContainer}>
+        <Text style={styles.bannerText}>Claim your daily free delivery now!</Text>
+        <Saly style={styles.bannerImage} />
+        <TouchableOpacity style={styles.printNowButton}>
+          <Text style={styles.printNowText}>Print now</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.sectionHeader}>
@@ -250,193 +329,320 @@ const HomeScreen = () => {
       </View>
 
       <FlatList
-        data={servicesData}
+        data={memoizedServicesData}
         renderItem={renderServiceItem}
         keyExtractor={item => item.id.toString()}
-        numColumns={3}
-        showsVerticalScrollIndicator={false}
+        numColumns={4}
+        showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.servicesContainer}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={5}
       />
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Popular Service Provider</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Vendors', { serviceId: 0, ...coordinates })}>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Vendors', { serviceId: 0, ...coordinates })}>
           <Text style={styles.seeAllText}>See all</Text>
         </TouchableOpacity>
       </View>
 
       <FlatList
-        data={vendorData}
+        data={memoizedVendorData}
         renderItem={renderVendorItem}
         keyExtractor={item => item.id.toString()}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.vendorsContainer}
+        initialNumToRender={5}
+        maxToRenderPerBatch={5}
+        windowSize={5}
       />
 
       {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
+
+      <TouchableOpacity style={styles.searchIcon} onPress={toggleSearchBar}>
+        <Searchbar width="30" height="32" color="#000" />
+      </TouchableOpacity>
+
+      {isSearchVisible && (
+      <Animated.View style={[styles.searchContainer, { width: searchBarWidth }]}>
+        <TextInput
+          placeholder="Search"
+          style={styles.searchInput}
+          placeholderTextColor="#000"
+        />
+        <TouchableOpacity onPress={toggleSearchBar}>
+          <Icon name="times" size={20} color="#000" />
+        </TouchableOpacity>
+      </Animated.View>
+      )}
+      <TouchableOpacity style={styles.notificationIcon}
+      onPress={() => navigation.navigate('Services')}>
+        <Bell width="35" height="50" />
+      </TouchableOpacity>
     </View>
+    <View style={styles.menuBarContainer}>
+        <MenuBar navigation={navigation} />
+      </View>
+    </SafeAreaView>
+  ), [location, memoizedServicesData, memoizedVendorData, errorMessage, searchBarWidth, renderServiceItem, renderVendorItem, navigation, coordinates]);
+
+  return (
+    <FlatList
+      data={[{ key: 'content' }]}
+      renderItem={renderContent}
+      keyExtractor={item => item.key}
+      style={styles.container}
+    />
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f4f4f4',
+    backgroundColor: '#F6FCFF',
   },
-  backgroundRectangle: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 220,
-    backgroundColor: '#5B82F9',
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollViewContent: {
+    paddingBottom: 80, // Adjust this value based on your MenuBar height
   },
   locationContainer: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     alignItems: 'center',
-    marginTop: 40,
-    marginHorizontal: 20,
+    marginTop: 35,
   },
   locationText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginRight: 5,
+    fontSize: 14,
+    color: '#000',
   },
   locationName: {
-    fontSize: 16,
-    color: '#fff',
+    fontSize: 15,
+    color: '#000',
+    flexShrink: 1,
+    fontWeight: 'bold',
   },
-  searchContainer: {
-    flexDirection: 'row',
+  bannerContainer: {
+    marginTop: 39,
+    borderRadius: 27,
+    height: 165,
+    width: '100%',
+    alignSelf: 'center',
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#3066D8',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 25,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    marginHorizontal: 20,
-    marginTop: 20,
   },
-  searchInput: {
-    flex: 1,
-    marginLeft: 10,
+    menuBarContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#FFFFFF',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  bannerText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    paddingTop: 23,
+    paddingRight: 153,
+    paddingLeft: 28,
+    paddingBottom: 7,
+  },
+  bannerImage: {
+    width: '100%',
+    height: 120,
+    resizeMode: 'contain',
+    marginTop: -90,
+    marginLeft: 176,
+  },
+  printNowButton: {
+    position: 'absolute',
+    bottom: 10,
+    left: '50%',
+    transform: [{ translateX: -50 }],
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    backgroundColor: '#000',
+    borderRadius: 25,
+    marginLeft: -104,
+    marginBottom: 10,
+  },
+  printNowText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginHorizontal: 20,
-    marginTop: 80,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  seeAllText: {
-    fontSize: 14,
-    color: '#5B82F9',
-  },
-  servicesContainer: {
-    marginTop: 20,
+    marginTop: 29,
     marginBottom: 10,
   },
-  serviceItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '30%',
-    margin: '1.5%',
-    backgroundColor: '#fff',
-    borderRadius: 10,
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#000',
+  },
+  seeAllText: {
+    color: '#5B82F9',
+    fontWeight: '600',
+  },
+  servicesContainer: {
     paddingVertical: 10,
-    paddingHorizontal: 5,
-    elevation: 2, // Adds shadow for better visual effect
+  },
+  serviceItem: {
+    flex: 1,
+    alignItems: 'center',
+    margin: 5,
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    padding: 15,
   },
   serviceIcon: {
-    width: 60, // Adjust to fit your design
-    height: 60, // Adjust to fit your design
-    borderRadius: 30, // Half of width/height to make it circular
-    marginBottom: 5,
-    backgroundColor: '#eee', // Optional: background color for visibility
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  serviceIconImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'contain', // Ensures the image fits within the circle
+    width: 41,
+    height: 41,
+    borderRadius: 30,
+    marginBottom: 8,
   },
   serviceText: {
-    fontSize: 14,
+    textAlign: 'center',
     color: '#333',
+    fontSize: 12,
+    fontWeight: '600',
   },
   providerCard: {
     backgroundColor: '#fff',
-    borderRadius: 10,
-    marginHorizontal: 20,
-    marginTop: 20,
-    padding: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginVertical: 10,
+    elevation: 3,
+    maxHeight:270,
   },
   providerImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 10,
-    marginRight: 15,
+    height: 150,
+    width: '100%',
+    resizeMode: 'cover',
   },
   providerDetails: {
-    flex: 1,
+    padding: 10,
+    flexDirection: 'column',
+    gap: 5
   },
   providerName: {
-    fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    fontSize: 18,
+    color: '#000',
   },
   providerInfo: {
-    fontSize: 14,
     color: '#666',
-    marginVertical: 5,
+    fontSize: 14,
   },
   serviceList: {
     fontSize: 12,
     color: '#888',
-    marginVertical: 5,
   },
-  providerFooter: {
+  footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
   },
-  timeDistance: {
-    fontSize: 12,
-    color: '#666',
+  time: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: 'rgba(0,0,0,0.3)',
+      },
+  dot: {
+    marginHorizontal: 5,
+    fontSize: 14,
+    color: 'rgba(0,0,0,0.3)',
   },
-  fastTag: {
-    fontSize: 12,
-    color: '#5B82F9',
-    fontWeight: 'bold',
+  distance: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: 'rgba(0,0,0,0.3)',
   },
   ratingContainer: {
-    flexDirection: 'row',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#E6F4F1',
+    backgroundColor: '#E6F4F1',
+    position: 'absolute',
+    width:32.15,
+    height:19,
+    top:10,
+    right:10,
     alignItems: 'center',
+    justifyContent: 'center'
   },
   ratingText: {
     fontSize: 12,
-    color: '#333',
-    marginLeft: 5,
+    color: '#004BB8',
+    fontWeight: 'bold',
+  },
+  statusTag: {
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  searchIcon: {
+    position: 'absolute',
+    top: 65,
+    left: 22,
+    zIndex: 1,
+  },
+  searchContainer: {
+    position: 'absolute',
+    height: 50,
+    top: 55,
+    left: 58,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 100,
+    paddingHorizontal: 20,
+    paddingVertical: 5,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
+    elevation: 2,
+    zIndex: 2,
+  },
+  searchInput: {
+    flex: 1,
+    marginRight: 10,
+    color: '#000000',
+  },
+  notificationIcon: {
+    position: 'absolute',
+    top: 55,
+    right: 20,
+    zIndex: 1,
   },
   errorText: {
     color: 'red',
     textAlign: 'center',
     marginTop: 20,
-  },
-  statusTag: {
-    fontSize: 12,
-    fontWeight: 'bold',
   },
 });
 

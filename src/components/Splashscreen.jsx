@@ -5,7 +5,7 @@ const SplashScreen = ({navigation}) => {
   useEffect(() => {
     // Navigate to Login screen after 4 seconds
     const timer = setTimeout(() => {
-      navigation.navigate('Login');
+      navigation.navigate('Home');
     }, 4000); // 4 seconds delay
 
     // Cleanup timer if the component is unmounted before 4 seconds

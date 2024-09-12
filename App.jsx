@@ -9,6 +9,8 @@ import HomeScreen from './src/components/home/Homescreen';
 import ConfirmSignUpScreen from './src/components/signup/ConfirmSignupscreen';
 import UploadScreen from './src/components/Upload/UploadFiles';
 import MFAScreen from './src/components/login/Mfascreen';
+import PaymentScreen from './src/components/payment/PaymentScreen';
+import ServiceScreen from './src/components/servicelist/ServiceScreen';
 
 const Stack = createStackNavigator();
 
@@ -54,6 +56,16 @@ const App = () => {
         <Stack.Screen
           name="Upload"
           component={UploadScreen}
+          options={{headerShown: false}}
+        />
+        <Stack.Screen
+          name="Payment"
+          component={PaymentScreen}
+          options={{headerShown: false}}
+        />
+        <Stack.Screen
+          name="Services"
+          component={ServiceScreen}
           options={{headerShown: false}}
         />
       </Stack.Navigator>
