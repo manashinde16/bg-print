@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import VendorCreateView, VendorDetailView, VendorListView, VendorUpdateView, VendorDeleteView, VendorServiceSearchView
+from .views import VendorCreateView, VendorDetailView, VendorListView, VendorUpdateView, VendorDeleteView, VendorServiceSearchView, top_services_view
 
 urlpatterns = [
     path('register/', VendorCreateView.as_view(), name='vendor-register'),
@@ -8,4 +8,5 @@ urlpatterns = [
     path('<int:pk>/edit/', VendorUpdateView.as_view(), name='vendor-edit'),
     path('<int:pk>/delete/', VendorDeleteView.as_view(), name='vendor-delete'),
     path('search/', VendorServiceSearchView.as_view(), name='vendor-service-search'),  # Search URL
+    path('top-services/', top_services_view, name='top_services'),  # Top services URL
 ]

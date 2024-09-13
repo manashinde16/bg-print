@@ -4,6 +4,19 @@ from .models import Vendor
 from .serializers import VendorSerializer
 from services.models import Service
 from services.serializers import ServiceSerializer
+from django.http import JsonResponse
+from django.db.models import Count
+from vendors.models import VendorService
+from django.core.cache import cache
+from django.views.decorators.cache import cache_page
+
+@cache_page(900)  # Cache for 15 minutes
+def top_services_view(request):
+    top_services = VendorService.objects.filter(is_active=True)\
+        .values('service__id', 'service__name')\
+        .annotate(service_count=Count('service'))\
+        .order_by('-service_count')[:2]
+    return JsonResponse(list(top_services), safe=False)
 
 class VendorCreateView(generics.CreateAPIView):
     queryset = Vendor.objects.all()

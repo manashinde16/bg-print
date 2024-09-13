@@ -29,18 +29,21 @@ def store_file_url(request):
     except ValueError:
         return Response({"error": "Invalid service IDs format"}, status=status.HTTP_400_BAD_REQUEST)
 
-    if len(files) > 5 or len(service_ids) > 5:
-        return Response({"error": "Maximum 5 files and 5 services allowed"}, status=status.HTTP_400_BAD_REQUEST)
+    if len(files) != len(service_ids):
+        return Response({"error": "Number of files must match number of service IDs"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if len(files) > 5:
+        return Response({"error": "Maximum 5 files allowed"}, status=status.HTTP_400_BAD_REQUEST)
 
     uploaded_files = []
 
-    for file in files:
+    for file, service_id in zip(files, service_ids):
         # Save file to S3
         file_name = default_storage.save(file.name, ContentFile(file.read()))
         file_url = default_storage.url(file_name)
 
         # Save file metadata to the database
-        uploaded_file = UploadedFile(vendor_id=vendor_id, service_ids=service_ids, file_url=file_url)
+        uploaded_file = UploadedFile(vendor_id=vendor_id, service_id=service_id, file_url=file_url)
         uploaded_file.save()
         uploaded_files.append(uploaded_file)
 
@@ -48,16 +51,17 @@ def store_file_url(request):
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 @api_view(['GET'])
-def get_uploaded_files(request, vendor_id=None):
-    """Retrieve all files or files for a specific vendor."""
-    if vendor_id:
+def get_uploaded_files(request, vendor_id=None, service_id=None):
+    """Retrieve all files, files for a specific vendor, or files for a specific vendor and service."""
+    if vendor_id and service_id:
+        files = UploadedFile.objects.filter(vendor_id=vendor_id, service_id=service_id)
+    elif vendor_id:
         files = UploadedFile.objects.filter(vendor_id=vendor_id)
     else:
         files = UploadedFile.objects.all()
 
     serializer = UploadedFileSerializer(files, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
-
 
 @api_view(['PUT'])
 def update_file_url(request, file_id):
