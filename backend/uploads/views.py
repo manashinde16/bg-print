@@ -19,6 +19,45 @@ def store_file_url(request):
 
     files = request.FILES.getlist('files')
     vendor_id = request.data.get('vendor_id')
+    service_ids = request.data.getlist('service_ids')  # Use getlist for multiple service IDs
+
+    if not vendor_id or not service_ids:
+        return Response({"error": "Vendor ID and Service IDs are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        service_ids = [int(sid) for sid in service_ids]
+    except ValueError:
+        return Response({"error": "Invalid service IDs format"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if len(files) > 5:
+        return Response({"error": "Maximum 5 files allowed"}, status=status.HTTP_400_BAD_REQUEST)
+
+    uploaded_files = []
+
+    # Group files by their respective service IDs
+    for service_id in service_ids:
+        matching_files = [file for file in files if str(service_id) in file.name]
+        if not matching_files:
+            return Response({"error": f"No files for service ID {service_id}"}, status=status.HTTP_400_BAD_REQUEST)
+
+        for file in matching_files:
+            # Save file to S3 or appropriate storage
+            file_name = default_storage.save(file.name, ContentFile(file.read()))
+            file_url = default_storage.url(file_name)
+            uploaded_files.append({
+                "service_id": service_id,
+                "file_url": file_url
+            })
+
+    return Response({"uploaded_files": uploaded_files}, status=status.HTTP_201_CREATED)
+    """Upload multiple files and store their URLs in the database."""
+    logger.info(f'Using storage: {default_storage.__class__.__name__}')
+    
+    if 'files' not in request.FILES:
+        return Response({"error": "No files provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+    files = request.FILES.getlist('files')
+    vendor_id = request.data.get('vendor_id')
     service_ids = request.data.get('service_ids')
 
     if not vendor_id or not service_ids:
